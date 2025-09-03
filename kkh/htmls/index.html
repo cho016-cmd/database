@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연구 계획서 | 게임 봇 분석 프로젝트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(to bottom right, #dbeafe, #ffffff);
+            color: #334155;
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .header {
+            background-color: #0d225a;
+            color: white;
+            padding: 2.5rem 0;
+            text-align: center;
+        }
+        .section-title {
+            position: relative;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 50px;
+            height: 3px;
+            background-color: #3b82f6;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 antialiased">
+
+    <!-- Header Section -->
+    <header class="header shadow-lg">
+        <div class="container mx-auto px-6">
+            <h1 class="text-4xl font-bold mb-2 tracking-tight">게임 봇 분석 연구 계획서</h1>
+            <p class="text-xl font-light opacity-80">게임 아이템 거래 시장의 봇 활동 빅데이터 분석 및 보안 대책</p>
+        </div>
+    </header>
+
+    <!-- Main Content Section -->
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- 1. 서론 -->
+        <section class="bg-white p-8 rounded-xl shadow-md mb-8">
+            <h2 class="text-2xl section-title mb-6">1. 서론</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">연구 동기 및 필요성</h3>
+                <p class="text-gray-600 leading-relaxed">
+                    저는 평소에 친구들과 온라인 게임을 즐겨 하는데, 게임 내 아이템 거래소에서 비정상적으로 시세를 조작하거나, 24시간 내내 반복적인 거래를 하는 <strong>봇(Bot)</strong> 계정 때문에 게임 경제가 망가지는 문제를 자주 목격했어요. 이러한 봇 활동은 정당하게 노력하는 일반 유저들에게 큰 피해를 줍니다. 따라서 이 연구는 게임 속 <strong>정보 보안</strong> 문제를 해결하고, 모두에게 공정한 <strong>게임</strong> 환경을 만드는 데 기여할 필요가 있다고 생각합니다.
+                </p>
+            </div>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">연구 목적</h3>
+                <p class="text-gray-600 leading-relaxed">
+                    이 연구는 <strong>게임 아이템 거래소</strong>의 <strong>빅데이터</strong>를 분석하여, 일반 사용자와 구별되는 <strong>봇(Bot)</strong> 계정의 특징적인 활동 패턴을 명확히 밝혀내는 것을 목적으로 합니다. 더 나아가, 이 분석 결과를 바탕으로 봇 활동을 효과적으로 탐지하고 차단하는 <strong>정보 보안</strong> 대책 아이디어를 제시하고자 합니다.
+                </p>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">연구 문제</h3>
+                <ul class="list-disc list-inside text-gray-600 space-y-1">
+                    <li>게임 아이템 거래소에서 <strong>봇(Bot)</strong> 계정이 보이는 비정상적인 거래 패턴에는 어떤 것들이 있는가?</li>
+                    <li>이러한 봇 활동 패턴을 <strong>빅데이터</strong> 분석을 통해 어떻게 효과적으로 탐지하고 시각화할 수 있는가?</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 2. 이론적 배경 -->
+        <section class="bg-white p-8 rounded-xl shadow-md mb-8">
+            <h2 class="text-2xl section-title mb-6">2. 이론적 배경</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">관련 이론/기술</h3>
+                <ul class="list-disc list-inside text-gray-600 space-y-1">
+                    <li><strong>빅데이터 분석:</strong> 방대한 게임 거래 데이터를 다루는 데 필요한 기술입니다.</li>
+                    <li><strong>데이터 시각화:</strong> 분석된 데이터를 그래프, 차트 등으로 표현하여 직관적으로 이해할 수 있게 돕는 기술입니다.</li>
+                    <li><strong>패턴 인식:</strong> 데이터 속에서 의미 있는 반복적인 규칙을 찾아내는 기술로, 봇의 행동을 구분하는 데 핵심적인 역할을 합니다.</li>
+                    <li><strong>Python 프로그래밍:</strong> 데이터 수집, 분석, 시각화 등 모든 연구 과정에서 활용될 핵심 도구입니다.</li>
+                </ul>
+            </div>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">선행 연구 조사</h3>
+                <p class="text-gray-600 mb-2">다음 키워드로 관련 연구를 찾아볼 수 있습니다.</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-1">
+                    <li>온라인 게임 봇 탐지 (Online game bot detection)</li>
+                    <li>게임 경제 빅데이터 분석 (Game economy big data analysis)</li>
+                    <li>이상 거래 탐지 시스템 (Anomaly detection system)</li>
+                </ul>
+            </div>
+        </section>
+        
+        <!-- 3. 연구 내용 및 방법 (코딩 활용) -->
+        <section class="bg-white p-8 rounded-xl shadow-md mb-8">
+            <h2 class="text-2xl section-title mb-6">3. 연구 내용 및 방법 (코딩 활용)</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">연구 대상 및 범위</h3>
+                <p class="text-gray-600 leading-relaxed">
+                    이 연구의 대상은 특정 온라인 게임 내 아이템 거래소입니다. 연구의 범위는 최근 3개월간 해당 거래소에서 발생한 모든 거래 기록 데이터로 한정합니다.
+                </p>
+            </div>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">연구 절차 및 방법</h3>
+                <ol class="list-decimal list-inside text-gray-600 space-y-3">
+                    <li>
+                        <strong>데이터 수집 및 전처리</strong>
+                        <p class="mt-1">
+                            **기술**: **Python**과 **`pandas`** 라이브러리<br>
+                            **활동**: 가상의 거래 로그 데이터를 생성하거나, 공개된 데이터셋을 CSV 파일로 다운로드합니다. `pandas`를 사용해 데이터를 불러온 뒤, 비정상적인 데이터를 정리합니다.
+                        </p>
+                    </li>
+                    <li>
+                        <strong>봇 활동 패턴 분석</strong>
+                        <p class="mt-1">
+                            **기술**: **Python**과 **`pandas`** 라이브러리<br>
+                            **활동**: `pandas`를 활용해 데이터를 그룹화하고, 24시간 활동, 거래 속도, 가격 조작 등의 비정상적인 패턴을 코딩으로 분석합니다.
+                        </p>
+                    </li>
+                    <li>
+                        <strong>결과 시각화</strong>
+                        <p class="mt-1">
+                            **기술**: **Python**과 **`matplotlib`** 라이브러리<br>
+                            **활동**: 분석 결과를 그래프로 시각화합니다. 봇의 활동 시간 분포나 거래 가격 분포를 시각적으로 보여주는 그래프를 만듭니다.
+                        </p>
+                    </li>
+                    <li>
+                        <strong>보안 대책 제안</strong>
+                        <p class="mt-1">
+                            **기술**: **`scikit-learn`** 라이브러리 (선택 사항)<br>
+                            **활동**: 분석된 패턴을 기반으로 간단한 **머신러닝** 모델을 만들어 봇 계정을 자동으로 분류하는 시스템의 초안을 설계합니다.
+                        </p>
+                    </li>
+                </ol>
+            </div>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-700 mb-2">예상 주요 활동 일정</h3>
+                <ul class="list-disc list-inside text-gray-600 space-y-1">
+                    <li>**1주차:** 연구 주제 및 계획 구체화, 데이터셋 확보</li>
+                    <li>**2주차:** 데이터 전처리 및 분석 환경 구축 (Python, 라이브러리 설치)</li>
+                    <li>**3주차:** 주요 데이터 분석 및 봇 패턴 탐지 코딩</li>
+                    <li>**4주차:** 데이터 시각화 및 결과 정리</li>
+                    <li>**5주차:** 최종 보고서 작성 및 발표 준비</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 4. 기대 효과 및 활용 방안 -->
+        <section class="bg-white p-8 rounded-xl shadow-md mb-8">
+            <h2 class="text-2xl section-title mb-6">4. 기대 효과 및 활용 방안</h2>
+            <p class="text-gray-600 leading-relaxed">
+                이 연구는 <strong>게임</strong> 내의 불법 **봇** 활동이 **정보 보안**에 미치는 악영향을 과학적으로 규명하는 데 기여할 것입니다. **코딩**을 통해 얻은 <strong>데이터 분석 그래프</strong>와 <strong>봇 탐지 규칙</strong>은 <strong>게임</strong> 개발사나 운영사에 전달하여 실제 **봇** 탐지 시스템 개발에 실질적인 도움을 줄 수 있습니다. 나아가, **빅데이터**와 **정보 보안**의 융합 사례를 보여줌으로써, 관련 분야에 대한 학생들의 관심을 높이는 교육적 효과도 기대할 수 있습니다.
+            </p>
+        </section>
+        
+        <!-- 5. 참고 문헌 -->
+        <section class="bg-white p-8 rounded-xl shadow-md mb-8">
+            <h2 class="text-2xl section-title mb-6">5. 참고 문헌</h2>
+            <div class="flex flex-col space-y-2 text-gray-600">
+                <a href="https://scienceon.kisti.re.kr/srch/selectPORSrchArticle.do?cn=JAKO201807753430892" target="_blank" class="inline-block w-full bg-blue-500 text-white py-2 px-4 rounded-md font-medium text-left hover:bg-blue-600 transition-colors duration-200 shadow-md">이경민, 김휘강. (2018). 헨젤과 그레텔 : 게임 내 아이템 거래를 기반으로 한 GFG 탐지 방안. 한국정보보호학회 학술대회, 28(2), 241-247.</a>
+                <a href="https://kiss.kstudy.com/DetailOa/Ar?key=50211268" target="_blank" class="inline-block w-full bg-blue-500 text-white py-2 px-4 rounded-md font-medium text-left hover:bg-blue-600 transition-colors duration-200 shadow-md">정윤경, 기준백, 천정희. (2003). 온라인 게임 아이템의 안전한 전자 거래 시스템. 정보보호학회지, 13(1), 171-182.</a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white text-center py-4">
+        <p class="text-sm opacity-75">본 연구 계획서는 정보과학 과제 연구용으로 작성되었습니다.</p>
+    </footer>
+
+</body>
+</html>
