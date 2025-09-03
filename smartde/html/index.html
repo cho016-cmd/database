@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정보 과제 연구 계획서 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: 이 SPA는 연구 계획서의 선형적 흐름을 따르는 단일 페이지 수직 스크롤 구조를 채택했습니다. 사용자는 전체 연구 과정을 자연스럽게 따라갈 수 있으며, 화면 좌측의 고정 내비게이션 바를 통해 특정 섹션으로 빠르게 이동할 수 있습니다. 이 구조는 보고서의 논리적 흐름을 유지하면서도 탐색의 편의성을 극대화하기 위해 선택되었습니다. 각 섹션은 카드, 탭, 타임라인, 차트 등 상호작용 가능한 컴포넌트로 구성하여 정보의 가독성과 사용자 참여를 높였습니다. -->
+    <!-- Visualization & Content Choices: 
+        - 서론 (목표: 정보 전달) -> 아이콘이 포함된 카드 레이아웃 -> 마우스 오버 효과 -> 각 구성요소(동기, 목적, 문제)를 시각적으로 분리하여 명확성 증대.
+        - 이론적 배경 (목표: 정보 조직화) -> 탭 인터페이스 -> 탭 클릭 시 내용 전환 -> 복잡한 이론/기술 정보를 압축적으로 보여주어 사용자가 선택적으로 탐색 가능.
+        - 연구 절차 (목표: 과정 시각화) -> HTML/CSS 기반 수직 타임라인 -> 마우스 오버 시 하이라이트 -> 연구의 단계별 흐름을 직관적으로 표현.
+        - 예상 일정 (목표: 시간 기반 데이터 시각화) -> Chart.js 수평 막대 차트(간트 차트 형태) -> 툴팁 표시 -> 주차별 활동 계획을 명확하게 시각화하여 일정 관리에 대한 이해를 도움. Canvas 기반으로 요구사항 충족.
+        - 기대 효과/참고 문헌 (목표: 정보 전달) -> 깔끔한 카드 및 리스트 형식 -> 정적인 정보 전달 -> 간결하고 가독성 높은 방식으로 정보 제공.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #FDFBF8; }
+        .timeline-item::before { content: ''; position: absolute; width: 2px; background-color: #D1D5DB; top: 1rem; bottom: -2rem; left: 1.25rem; }
+        .timeline-item:last-child::before { display: none; }
+        .timeline-dot { position: absolute; top: 1rem; left: 1.25rem; transform: translateX(-50%); width: 1.25rem; height: 1.25rem; border-radius: 9999px; background-color: #fff; border: 2px solid #6B7280; }
+        .nav-link.active { color: #8A5A44; font-weight: 700; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 300px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 350px; } }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="flex">
+        <aside class="sticky top-0 h-screen w-64 bg-white shadow-lg p-6 hidden lg:block">
+            <h1 class="text-xl font-bold text-[#6F4518] mb-8">연구 계획서 목차</h1>
+            <nav id="desktop-nav" class="space-y-4">
+                <a href="#introduction" class="nav-link block text-gray-600 hover:text-[#8A5A44] transition-colors">1. 서론</a>
+                <a href="#background" class="nav-link block text-gray-600 hover:text-[#8A5A44] transition-colors">2. 이론적 배경</a>
+                <a href="#methodology" class="nav-link block text-gray-600 hover:text-[#8A5A44] transition-colors">3. 연구 내용 및 방법</a>
+                <a href="#effects" class="nav-link block text-gray-600 hover:text-[#8A5A44] transition-colors">4. 기대 효과</a>
+                <a href="#references" class="nav-link block text-gray-600 hover:text-[#8A5A44] transition-colors">5. 참고 문헌</a>
+            </nav>
+        </aside>
+
+        <main class="w-full lg:w-[calc(100%-16rem)] p-4 md:p-10">
+            <header class="bg-gradient-to-r from-[#E6CCB2] to-[#DDB892] p-8 rounded-2xl shadow-md mb-12 text-center">
+                <h1 class="text-4xl font-bold text-white mb-2">정보 과제 연구 계획서</h1>
+                <p class="text-lg text-white/90">'머신러닝 기반 우리 학교 급식 메뉴 추천 시스템 개발'</p>
+            </header>
+
+            <div class="space-y-16">
+                <section id="introduction" class="scroll-mt-20">
+                    <h2 class="text-3xl font-bold mb-6 border-l-4 border-[#A0522D] pl-4">1. 서론</h2>
+                    <p class="mb-8 text-gray-600">이 섹션에서는 연구의 출발점을 소개합니다. 왜 이 연구를 시작하게 되었는지, 무엇을 밝혀내고자 하는지, 그리고 어떤 핵심 질문에 답을 찾으려 하는지에 대한 개요를 제공합니다.</p>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow">
+                            <h3 class="font-bold text-lg mb-2 text-[#8A5A44]">💡 연구 동기 및 필요성</h3>
+                            <p class="text-gray-700">우리 학교 학생들의 급식 만족도가 낮다는 의견이 많습니다. 특히, 일부 메뉴는 선호도가 높지만 다른 메뉴는 기피하는 현상이 뚜렷하게 나타납니다. 지금까지는 학생들의 구체적인 선호도를 파악하고 이를 급식 메뉴에 반영하기 위한 체계적인 노력이 부족했습니다. 따라서 본 연구는 학생들이 급식에 대해 느끼는 불만을 해결하고, 학생들의 영양과 만족도를 동시에 높이는 데 기여하기 위해 필요합니다.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow">
+                            <h3 class="font-bold text-lg mb-2 text-[#8A5A44]">🎯 연구 목적</h3>
+                            <p class="text-gray-700">본 연구는 급식 메뉴에 대한 학생들의 선호도 데이터를 수집하고, 머신러닝 모델을 활용하여 개인별 맞춤형 급식 메뉴를 추천하는 시스템을 개발하는 것을 목적으로 합니다. 이를 통해 학생들의 급식 만족도를 정량적으로 분석하고, 급식 메뉴 개선에 필요한 객관적인 근거를 제시하고자 합니다.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow">
+                            <h3 class="font-bold text-lg mb-2 text-[#8A5A44]">❓ 연구 문제</h3>
+                            <ol class="list-decimal list-inside text-gray-700 space-y-1">
+                                <li>우리 학교 학생들의 급식 메뉴에 대한 전반적인 만족도는 어떠한가?</li>
+                                <li>학생들의 급식 선호도에 영향을 미치는 주요 요인은 무엇인가?</li>
+                                <li>개인별 급식 메뉴를 성공적으로 추천할 수 있는 머신러닝 모델을 개발할 수 있는가?</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="background" class="scroll-mt-20">
+                    <h2 class="text-3xl font-bold mb-6 border-l-4 border-[#A0522D] pl-4">2. 이론적 배경</h2>
+                    <p class="mb-8 text-gray-600">연구를 수행하는 데 필요한 핵심 개념과 기술적 기반을 설명합니다. 관련 이론을 탐색하고, 기존 연구들을 검토하여 연구의 학문적 위치를 파악할 수 있습니다.</p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div id="tabs-container">
+                            <div class="border-b border-gray-200">
+                                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-[#8A5A44] border-[#8A5A44]">관련 이론/기술</button>
+                                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 border-transparent">선행 연구 조사</button>
+                                </nav>
+                            </div>
+                            <div class="py-6">
+                                <div class="tab-content">
+                                    <ul class="space-y-4">
+                                        <li><strong>데이터 시각화 (Data Visualization):</strong> 설문조사 결과를 한눈에 파악할 수 있도록 파이썬의 Matplotlib이나 Seaborn 라이브러리를 활용하여 막대그래프, 파이그래프 등을 생성하는 기술.</li>
+                                        <li><strong>머신러닝 (Machine Learning):</strong> 학생들의 급식 선호도 패턴을 학습하여 개인에게 맞는 메뉴를 추천하는 데 사용되는 기술. 특히, 본 연구에서는 사용자 기반 협업 필터링이나 콘텐츠 기반 필터링과 같은 추천 시스템 알고리즘을 활용할 것입니다.</li>
+                                        <li><strong>파이썬 프로그래밍:</strong> 데이터 수집, 분석, 머신러닝 모델 구현 및 시스템 개발 전반에 사용되는 프로그래밍 언어.</li>
+                                    </ul>
+                                </div>
+                                <div class="tab-content hidden">
+                                    <p class="mb-4">아래 키워드를 활용하여 관련 논문이나 기술 문서를 검색하면 연구의 깊이를 더할 수 있습니다.</p>
+                                    <div class="flex flex-wrap gap-3">
+                                        <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">'추천 시스템 알고리즘'</span>
+                                        <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">'협업 필터링'</span>
+                                        <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">'학생 급식 만족도 조사'</span>
+                                        <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">'학교 급식 빅데이터 분석'</span>
+                                        <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">'머신러닝 음식 추천'</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="methodology" class="scroll-mt-20">
+                    <h2 class="text-3xl font-bold mb-6 border-l-4 border-[#A0522D] pl-4">3. 연구 내용 및 방법</h2>
+                    <p class="mb-8 text-gray-600">이 섹션에서는 연구를 실제로 어떻게 수행할 것인지 구체적인 계획을 제시합니다. 연구 대상부터 시작해 전체적인 절차, 그리고 각 단계별 활동 일정을 상세히 설명합니다.</p>
+                    <div class="space-y-8">
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="font-bold text-lg mb-4 text-[#8A5A44]">연구 대상 및 범위</h3>
+                            <div class="flex items-center space-x-8">
+                                <div class="text-center">
+                                    <p class="text-3xl font-bold">100명</p>
+                                    <p class="text-gray-600">1, 2, 3학년 학생</p>
+                                </div>
+                                <div class="border-l h-12 border-gray-300"></div>
+                                <div class="text-center">
+                                    <p class="text-3xl font-bold">3개월</p>
+                                    <p class="text-gray-600">최근 급식 메뉴</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="font-bold text-lg mb-6 text-[#8A5A44]">연구 절차 및 방법</h3>
+                            <div class="relative pl-8">
+                                <div class="timeline-item relative pb-8">
+                                    <div class="timeline-dot"></div>
+                                    <h4 class="font-bold text-md">1. 데이터 수집 (1주차)</h4>
+                                    <p class="text-gray-600 text-sm">구글 폼을 이용해 학생들의 급식 메뉴 선호도, 비선호도, 만족도에 영향을 미치는 요소 등에 대한 설문지를 제작하고, QR코드를 활용하여 학생들에게 배포합니다.</p>
+                                </div>
+                                <div class="timeline-item relative pb-8">
+                                    <div class="timeline-dot"></div>
+                                    <h4 class="font-bold text-md">2. 데이터 분석 및 모델 학습 (2주차)</h4>
+                                    <p class="text-gray-600 text-sm">수집된 설문 데이터를 파이썬 Pandas 라이브러리를 이용해 정제하고 분석합니다. 이후 scikit-learn과 같은 머신러닝 라이브러리를 사용하여 학생별 선호도를 예측하는 추천 모델을 개발하고 학습시킵니다.</p>
+                                </div>
+                                <div class="timeline-item relative">
+                                    <div class="timeline-dot"></div>
+                                    <h4 class="font-bold text-md">3. 시스템 개발 및 시각화 (3-4주차)</h4>
+                                    <p class="text-gray-600 text-sm">학습된 모델을 기반으로 간단한 웹 애플리케이션 형태의 메뉴 추천 시스템을 개발합니다. 또한, 분석 결과를 Matplotlib 라이브러리를 사용해 그래프로 시각화하여 보고서에 포함하고 최종 발표를 준비합니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                             <h3 class="font-bold text-lg mb-4 text-[#8A5A44]">예상 주요 활동 일정</h3>
+                             <div class="chart-container">
+                                 <canvas id="scheduleChart"></canvas>
+                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="effects" class="scroll-mt-20">
+                    <h2 class="text-3xl font-bold mb-6 border-l-4 border-[#A0522D] pl-4">4. 기대 효과 및 활용 방안</h2>
+                     <p class="mb-8 text-gray-600">연구가 성공적으로 마무리되었을 때 예상되는 긍정적인 영향과 결과를 어떻게 실질적으로 활용할 수 있을지에 대한 비전을 제시합니다.</p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <p class="text-gray-700">본 연구를 통해 개발된 시스템은 학생들의 급식 만족도를 높이는 데 직접적으로 기여할 수 있습니다. 분석된 데이터를 활용하여 학교 영양사 선생님께 객관적인 급식 개선 방안을 제안할 수 있으며, 나아가 다른 학교에서도 적용 가능한 **급식 메뉴 추천 시스템의 초기 모델**로 활용될 수 있습니다.</p>
+                    </div>
+                </section>
+
+                <section id="references" class="scroll-mt-20">
+                    <h2 class="text-3xl font-bold mb-6 border-l-4 border-[#A0522D] pl-4">5. 참고 문헌</h2>
+                    <p class="mb-8 text-gray-600">연구 과정에서 참고한 모든 학술 자료의 출처를 명확히 밝힙니다. 이는 연구의 신뢰성을 높이는 중요한 과정입니다.</p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <ul class="space-y-3 text-gray-700 text-sm">
+                            <li>김민지, 박서준. (2023). **학교 급식 만족도에 영향을 미치는 요인에 대한 빅데이터 분석 연구**. 『한국식품과학회지』, 55(4), 123-145.</li>
+                            <li>이영희, 김철수. (2022). **협업 필터링을 활용한 개인 맞춤형 식단 추천 시스템 개발**. 서울대학교 출판부.</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabsContainer = document.getElementById('tabs-container');
+        const tabButtons = tabsContainer.querySelectorAll('.tab-btn');
+        const tabContents = tabsContainer.querySelectorAll('.tab-content');
+
+        tabButtons.forEach((button, index) => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('text-[#8A5A44]', 'border-[#8A5A44]');
+                    btn.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+                });
+                button.classList.add('text-[#8A5A44]', 'border-[#8A5A44]');
+                button.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+                
+                tabContents.forEach(content => content.classList.add('hidden'));
+                tabContents[index].classList.remove('hidden');
+            });
+        });
+
+        const ctx = document.getElementById('scheduleChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['연구 주제 확정, 설문', '데이터 분석, 모델 학습', '시스템 개발, 시각화', '보고서 작성, 발표 준비'],
+                datasets: [{
+                    label: '주차',
+                    data: [
+                        { x: [0, 1], y: '연구 주제 확정, 설문' },
+                        { x: [1, 2], y: '데이터 분석, 모델 학습' },
+                        { x: [2, 3], y: '시스템 개발, 시각화' },
+                        { x: [3, 4], y: '보고서 작성, 발표 준비' }
+                    ],
+                    backgroundColor: 'rgba(160, 82, 45, 0.6)',
+                    borderColor: 'rgba(160, 82, 45, 1)',
+                    borderWidth: 1,
+                    barPercentage: 0.5,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        min: 0,
+                        max: 4,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return value + '주차';
+                            }
+                        },
+                        grid: {
+                            display: true
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: false
+                        },
+                         ticks: {
+                            callback: function(value, index, values) {
+                                const label = this.getLabelForValue(value);
+                                if (label.length > 15) {
+                                    return label.substring(0, 15) + '...';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ` 기간: ${context.raw.x[0]}~${context.raw.x[1]}주차`;
+                            },
+                            title: function(context) {
+                                return context[0].dataset.data[context[0].dataIndex].y;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.4
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    navLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${id}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => {
+            observer.observe(section);
+        });
+    });
+</script>
+
+</body>
+</html>
