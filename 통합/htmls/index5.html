@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jungle Path Optimizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Dark Mode Gradient -->
+    <!-- Application Structure Plan: A single-page, task-oriented application. The structure has a top control panel with inputs (champion search, 3 scenarios) and a new visual map side-by-side. The bottom section is a dedicated result panel. This combines user input, visual feedback, and detailed text results in a logical top-to-bottom flow. -->
+    <!-- Visualization & Content Choices: 
+        - Champion Selection: A searchable grid of champion cards for easy filtering.
+        - Scenario Selection: 3 radio buttons for 'Stronger', 'Equal', 'Weaker' scenarios.
+        - Map Visualization: Goal is to visually represent the jungle layout. Updated to use a container with a background gradient mimicking the Summoner's Rift layout (blue/red sides, river). Nodes are now absolutely positioned for a more realistic map, including separate Top and Bot Scuttle crabs. Edges are dynamically drawn between them.
+        - Results Display: Dynamically generated HTML with an analysis box explaining the path choice and an ordered list for the step-by-step route.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        :root {
+            --color-bg: #0d1117;
+            --color-bg-light: #161b22;
+            --color-border: #30363d;
+            --color-text: #c9d1d9;
+            --color-text-secondary: #8b949e;
+            --color-primary: #2ea043;
+            --color-primary-glow: rgba(46, 160, 67, 0.5);
+            --color-risk: #f85149;
+            --color-aggressive: #e6b400;
+            --gradient-primary: linear-gradient(45deg, #1f6feb, #58a6ff);
+            --gradient-secondary: linear-gradient(45deg, #2ea043, #56d364);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: var(--color-bg);
+            background-image: radial-gradient(ellipse at top left, rgba(31, 111, 235, 0.15) 0%, var(--color-bg) 50%);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .header {
+            padding: 20px 0; border-bottom: 1px solid var(--color-border); position: sticky; top: 0;
+            background-color: rgba(13, 17, 23, 0.8); backdrop-filter: blur(10px); z-index: 100;
+        }
+        .nav { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--color-text); text-decoration: none; }
+        .nav-links { list-style: none; display: flex; gap: 25px; }
+        .nav-links a {
+            color: var(--color-text-secondary); text-decoration: none; font-weight: 500;
+            position: relative; padding: 5px 0; transition: color 0.3s ease;
+        }
+        .nav-links a::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px;
+            background: var(--gradient-primary); transform: scaleX(0); transform-origin: right;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .nav-links a:hover { color: var(--color-text); }
+        .nav-links a:hover::after { transform: scaleX(1); transform-origin: left; }
+        main { padding: 60px 0; }
+        .section { margin-bottom: 60px; text-align: center; }
+        .section-title { font-size: 2rem; margin-bottom: 15px; font-weight: 700; }
+        .section-subtitle { font-size: 1.1rem; color: var(--color-text-secondary); max-width: 600px; margin: 0 auto 40px; }
+        .control-panel {
+            background: transparent; border: 1px solid var(--color-border);
+            border-radius: 16px; padding: 30px; margin-bottom: 60px;
+        }
+        .control-grid { display: grid; grid-template-columns: 1fr; align-items: start; gap: 40px; }
+        @media (min-width: 1024px) { .control-grid { grid-template-columns: 1fr 1fr; } }
+        
+        .map-container {
+            background: var(--color-bg-light);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--color-border);
+        }
+        .map-visual {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            background-color: #1a2c2a;
+            background-image: 
+                linear-gradient(135deg, rgba(14, 43, 70, 0.7) 38%, rgba(20,30,40,0) 40%, rgba(20,30,40,0) 60%, rgba(70, 20, 25, 0.7) 62%),
+                linear-gradient(to right, rgba(23, 50, 40, 1), rgba(40, 60, 55, 1));
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .node {
+            position: absolute;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            border: 2px solid var(--color-border);
+            font-weight: 600; z-index: 10;
+            transition: all 0.3s ease-in-out;
+            transform: translate(-50%, -50%);
+            background-color: var(--color-bg);
+            padding: 0.5rem;
+        }
+        .node.camp { border-radius: 0.375rem; width: 50px; height: 35px; font-size: 0.75rem; }
+        .node.gank { border-radius: 9999px; width: 60px; height: 30px; font-size: 0.7rem; }
+
+        #node-Gromp { top: 28%; left: 8%; }
+        #node-BlueBuff { top: 35%; left: 25%; }
+        #node-Wolves { top: 50%; left: 33%; }
+        #node-Raptors { top: 58%; left: 60%; }
+        #node-RedBuff { top: 68%; left: 75%; }
+        #node-Krugs { top: 80%; left: 90%; }
+        #node-GankTop { top: 8%; left: 20%; }
+        #node-GankBot { top: 92%; left: 80%; }
+        #node-GankMid { top: 50%; left: 50%; width: 60px; height: 30px; }
+        #node-TopScuttle { top: 25%; left: 50%; width: 55px; height: 30px; font-size: 0.65rem; }
+        #node-BotScuttle { top: 75%; left: 50%; width: 55px; height: 30px; font-size: 0.65rem; }
+        #node-InvadeBlue { top: 18%; left: 38%; width: 45px; height: 45px; }
+        #node-InvadeRed { top: 78%; left: 62%; width: 45px; height: 45px; }
+
+        .edge {
+            position: absolute; height: 3px; background-color: var(--color-border);
+            transform-origin: 0 50%; z-index: 5; transition: background-color 0.3s ease-in-out;
+        }
+        .node.path-equal, .edge.path-equal { border-color: #58a6ff; }
+        .node.path-equal { background-color: rgba(88, 166, 255, 0.2); }
+        .edge.path-equal { background-color: #58a6ff; }
+        .node.path-stronger, .edge.path-stronger { border-color: var(--color-risk); }
+        .node.path-stronger { background-color: rgba(248, 81, 73, 0.2); }
+        .edge.path-stronger { background-color: var(--color-risk); }
+        .node.path-weaker, .edge.path-weaker { border-color: var(--color-aggressive); }
+        .node.path-weaker { background-color: rgba(230, 180, 0, 0.2); }
+        .edge.path-weaker { background-color: var(--color-aggressive); }
+
+        #champion-search {
+            width: 100%; padding: 12px 20px; background-color: var(--color-bg); border: 1px solid var(--color-border);
+            border-radius: 8px; color: var(--color-text); font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        #champion-search:focus {
+            outline: none; border-color: var(--color-primary); box-shadow: 0 0 10px var(--color-primary-glow);
+        }
+        .champion-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px; max-height: 300px; overflow-y: auto; padding: 10px;
+            border: 1px solid var(--color-border); border-radius: 8px; margin-top: 20px;
+        }
+        .champion-card {
+            background-color: var(--color-bg); border: 2px solid var(--color-border); border-radius: 8px;
+            padding: 10px; cursor: pointer; text-align: center; position: relative;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .champion-card:hover { 
+            transform: translateY(-5px) scale(1.05); 
+            box-shadow: 0 0 15px var(--color-primary-glow);
+            border-color: var(--color-primary);
+        }
+        .champion-card.selected {
+            border-color: transparent;
+            background-image: linear-gradient(var(--color-bg), var(--color-bg)), var(--gradient-secondary);
+            background-origin: border-box; background-clip: padding-box, border-box;
+            box-shadow: 0 0 20px var(--color-primary-glow); transform: translateY(-5px) scale(1.05);
+        }
+        .champion-card img {
+            width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 8px;
+            border: 2px solid var(--color-border); background-color: #0d1117;
+        }
+        .champion-card h3 { font-size: 0.9rem; color: var(--color-text); }
+        
+        .risk-options { display: flex; flex-direction: column; gap: 15px; }
+        .risk-options label {
+            background: var(--color-bg); border: 2px solid var(--color-border); border-radius: 8px;
+            padding: 15px; cursor: pointer; display: block; text-align: left;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+        .risk-options input { display: none; }
+        .risk-options input:checked + label {
+            border-color: transparent;
+            background-image: linear-gradient(var(--color-bg), var(--color-bg)), var(--gradient-secondary);
+            background-origin: border-box; background-clip: padding-box, border-box;
+        }
+        .risk-options h4 { margin-bottom: 5px; font-size: 1.1rem; }
+        .risk-options p { font-size: 0.9rem; color: var(--color-text-secondary); }
+        
+        #generate-path-btn {
+            width: 100%; padding: 15px 40px; border-radius: 8px; font-size: 1.2rem; font-weight: 700; color: #ffffff;
+            text-decoration: none; border: none; cursor: pointer; 
+            background: var(--gradient-primary);
+            box-shadow: var(--shadow-lg);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        #generate-path-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0 30px rgba(31, 111, 235, 0.6);
+        }
+        
+        .result-section {
+            background-color: var(--color-bg-light); border-radius: 12px; padding: 40px;
+            border: 1px solid var(--color-border); min-height: 200px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .analysis-box { width: 100%; text-align: left; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid; }
+        .analysis-box.equal { border-color: #58a6ff; background-color: rgba(88, 166, 255, 0.1); }
+        .analysis-box.stronger { border-color: var(--color-risk); background-color: rgba(248, 81, 73, 0.1); }
+        .analysis-box.weaker { border-color: var(--color-aggressive); background-color: rgba(230, 180, 0, 0.1); }
+        .analysis-box h4 { margin-bottom: 10px; font-size: 1.2rem; }
+        .analysis-box p { color: var(--color-text-secondary); }
+        
+        .path-container h4 {
+            font-size: 1.5rem; margin-bottom: 20px; 
+            background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .path-steps { list-style: none; text-align: left; max-width: 400px; width: 100%; margin: 0 auto; }
+        .path-steps li {
+            background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px;
+            padding: 15px; margin-bottom: 10px; font-weight: 500; display: flex; align-items: center;
+            transition: background-color 0.3s ease, border-left-color 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        .path-steps li:hover {
+            background-color: rgba(86, 211, 100, 0.1);
+            border-left-color: var(--color-primary);
+        }
+        .path-steps li .step-number { font-size: 1.2rem; font-weight: 700; color: var(--color-primary); margin-right: 15px; min-width: 20px; }
+        #result-text { color: var(--color-text-secondary); font-size: 1.1rem; font-weight: 500; }
+        .fade-in { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .fade-in.visible { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <a href="#" class="logo">Jungle.gg</a>
+            <ul class="nav-links">
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Guides</a></li>
+                <li><a href="#">Patch Notes</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="section hero">
+            <h1 class="section-title fade-in">상황 기반 최적 정글 경로 분석기</h1>
+            <p class="section-subtitle fade-in" style="transition-delay: 0.1s;">상대 정글러와의 상성을 고려하여 가장 현명한 초반 동선을 계산합니다.</p>
+        </section>
+
+        <div class="control-panel fade-in" style="transition-delay: 0.2s;">
+            <div class="control-grid">
+                <div class="flex flex-col gap-8">
+                    <div>
+                        <h2 class="section-title" style="font-size: 1.5rem; text-align:left; margin-bottom: 20px;">1. 챔피언 선택</h2>
+                        <input type="text" id="champion-search" placeholder="챔피언 이름으로 검색...">
+                        <div class="champion-grid" id="champion-grid"></div>
+                    </div>
+                    <div>
+                        <h2 class="section-title" style="font-size: 1.5rem; text-align:left; margin-bottom: 20px;">2. 초반 상성 선택</h2>
+                        <div class="risk-options">
+                            <input type="radio" id="scenario-equal" name="scenario" value="equal" checked>
+                            <label for="scenario-equal"><h4>상대가 동등할 경우 (표준)</h4><p>가장 효율적인 표준 동선을 사용해 안정적으로 성장합니다.</p></label>
+                            <input type="radio" id="scenario-weaker" name="scenario" value="weaker">
+                            <label for="scenario-weaker"><h4>상대가 약할 경우 (유리)</h4><p>초반 우위를 바탕으로 상대 정글에 적극적으로 개입하여 스노우볼을 굴립니다.</p></label>
+                            <input type="radio" id="scenario-stronger" name="scenario" value="stronger">
+                            <label for="scenario-stronger"><h4>상대가 강할 경우 (불리)</h4><p>초반 교전을 피하고 안전한 동선을 선택하여 성장에 집중합니다.</p></label>
+                        </div>
+                    </div>
+                </div>
+                <div class="map-container">
+                    <h2 class="section-title" style="font-size: 1.5rem; text-align:left; margin-bottom: 20px;">경로 시각화</h2>
+                     <div class="map-visual">
+                        <div id="edge-container" class="absolute inset-0"></div>
+                        <div id="node-GankTop" class="node gank">탑 갱킹</div>
+                        <div id="node-GankBot" class="node gank">봇 갱킹</div>
+                        <div id="node-GankMid" class="node gank">미드 갱킹</div>
+                        <div id="node-InvadeBlue" class="node gank">상대 블루</div>
+                        <div id="node-TopScuttle" class="node gank">윗 바위게</div>
+                        <div id="node-BotScuttle" class="node gank">아래 바위게</div>
+                        <div id="node-InvadeRed" class="node gank">상대 레드</div>
+                        <div id="node-Gromp" class="node camp">두꺼비</div>
+                        <div id="node-BlueBuff" class="node camp">블루</div>
+                        <div id="node-RedBuff" class="node camp">레드</div>
+                        <div id="node-Krugs" class="node camp">돌거북</div>
+                        <div id="node-Wolves" class="node camp">늑대</div>
+                        <div id="node-Raptors" class="node camp">칼날부리</div>
+                    </div>
+                </div>
+            </div>
+             <div class="generate-button-container" style="margin-top: 40px;">
+                <button id="generate-path-btn">최적 경로 계산</button>
+            </div>
+        </div>
+
+        <section id="path-result" class="section">
+            <h2 class="section-title fade-in" style="transition-delay: 0.3s;">3. 분석 결과</h2>
+            <div class="result-section fade-in" style="transition-delay: 0.4s;">
+                <div id="result-content">
+                    <p id="result-text">챔피언과 초반 상성을 선택하고 '최적 경로 계산' 버튼을 누르세요.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const campKoreanNames = {
+                'RedBuff': '레드 버프', 'BlueBuff': '블루 버프', 'Krugs': '돌거북',
+                'Raptors': '칼날부리', 'Wolves': '늑대', 'Gromp': '두꺼비',
+                'GankTop': '탑 갱킹', 'GankMid': '미드 갱킹', 'GankBot': '봇 갱킹',
+                'TopScuttle': '윗 바위게', 'BotScuttle': '아래 바위게', 
+                'InvadeRed': '상대 레드 카정', 'InvadeBlue': '상대 블루 카정'
+            };
+
+            const championData = {
+                'Graves': { name: '그레이브즈', style: '성장/교전 AD', paths: { 'equal': { name: '표준 레드 4캠프', path: ['RedBuff', 'Krugs', 'Raptors', 'TopScuttle'] }, 'stronger': { name: '안전 블루 4캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Gwen': { name: '그웬', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Naafiri': { name: '나피리', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'Raptors', 'BlueBuff', 'GankMid'] }, 'stronger': { name: '안전 블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'Raptors', 'InvadeBlue'] }}},
+                'Nocturne': { name: '녹턴', style: '성장형 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '레드 4캠프 후 카정', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'InvadeBlue'] }}},
+                'Nunu': { name: '누누와 윌럼프', style: '오브젝트/갱킹 AP', paths: { 'equal': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'stronger': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'Raptors', 'BlueBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'InvadeRed'] }}},
+                'Nidalee': { name: '니달리', style: '초반 교전 AP', paths: { 'equal': { name: '레드 3캠프 후 윗바위게', path: ['RedBuff', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '블루 3캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'RedBuff', 'BotScuttle'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Diana': { name: '다이애나', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Rammus': { name: '람머스', style: '갱킹형 TANK', paths: { 'equal': { name: '레드 3캠프 후 갱킹', path: ['RedBuff', 'Krugs', 'BlueBuff', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'RekSai': { name: '렉사이', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'Krugs', 'BlueBuff', 'GankTop'] }, 'stronger': { name: '안전 블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Rengar': { name: '렝가', style: '초반 교전 AD', paths: { 'equal': { name: '레드 4캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'TopScuttle'] }, 'stronger': { name: '블루 4캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'BotScuttle'] }, 'weaker': { name: '레드 3캠프 후 상대 블루 카정', path: ['RedBuff', 'Krugs', 'Raptors', 'InvadeBlue'] }}},
+                'Rumble': { name: '럼블', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'LeeSin': { name: '리 신', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '안전 블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Lillia': { name: '릴리아', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'MasterYi': { name: '마스터 이', style: '성장형 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Maokai': { name: '마오카이', style: '갱킹형 TANK', paths: { 'equal': { name: '블루 3캠프 후 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'stronger': { name: '레드 3캠프 후 갱킹', path: ['RedBuff', 'Raptors', 'BlueBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'Mordekaiser': { name: '모데카이저', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'DrMundo': { name: '문도 박사', style: '성장형 TANK', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Vi': { name: '바이', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'Krugs', 'BlueBuff', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Belveth': { name: '벨베스', style: '성장/교전 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Volibear': { name: '볼리베어', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Briar': { name: '브라이어', style: '초반 교전 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Brand': { name: '브랜드', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Viego': { name: '비에고', style: '성장/교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Sylas': { name: '사일러스', style: '초반 교전 AP', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Shaco': { name: '샤코', style: '초반 교전 AD/AP', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'Raptors', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'Raptors', 'InvadeBlue'] }}},
+                'Sejuani': { name: '세주아니', style: '갱킹형 TANK', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'Shyvana': { name: '쉬바나', style: '성장형 AD/AP', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Skarner': { name: '스카너', style: '성장형 TANK', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'XinZhao': { name: '신 짜오', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Amumu': { name: '아무무', style: '성장형 TANK', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Ivern': { name: '아이번', style: '카운터 정글/서포팅', paths: { 'equal': { name: '레드-블루 카정 동선', path: ['RedBuff', 'Raptors', 'Wolves', 'BlueBuff'] }, 'stronger': { name: '블루-레드 카정 동선', path: ['BlueBuff', 'Wolves', 'Raptors', 'RedBuff'] }, 'weaker': { name: '적 레드 스타트 카정', path: ['InvadeRed', 'Raptors', 'BlueBuff'] }}},
+                'Ekko': { name: '에코', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Elise': { name: '엘리스', style: '초반 교전 AP', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'MonkeyKing': { name: '오공', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Olaf': { name: '올라프', style: '초반 교전 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Warwick': { name: '워윅', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Udyr': { name: '우디르', style: '성장/교전 AD/AP', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Evelynn': { name: '이블린', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'JarvanIV': { name: '자르반 4세', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Zac': { name: '자크', style: '갱킹형 TANK', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Jax': { name: '잭스', style: '성장형 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Zed': { name: '제드', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Zyra': { name: '자이라', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Karthus': { name: '카서스', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '3캠프 후 상대 칼날부리 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'Khazix': { name: '카직스', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Kayn': { name: '케인', style: '성장/교전 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Raptors', 'Krugs', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '레드 3캠프 후 카정', path: ['RedBuff', 'Raptors', 'Wolves', 'InvadeBlue'] }}},
+                'Kindred': { name: '킨드레드', style: '성장/교전 AD', paths: { 'equal': { name: '레드 3캠프 후 윗바위게', path: ['RedBuff', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '블루 3캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'RedBuff', 'BotScuttle'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Qiyana': { name: '키아나', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'Krugs', 'Raptors', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'Wolves', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'Raptors', 'InvadeBlue'] }}},
+                'Talon': { name: '탈론', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'Raptors', 'Krugs', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Wolves', 'Gromp', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'Raptors', 'InvadeBlue'] }}},
+                'Taliyah': { name: '탈리야', style: '초반 교전 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Trundle': { name: '트런들', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Pantheon': { name: '판테온', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Fiddlesticks': { name: '피들스틱', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Poppy': { name: '뽀삐', style: '갱킹형 TANK', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'Hecarim': { name: '헤카림', style: '성장형 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Gragas': { name: '그라가스', style: '갱킹형 AP', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Nasus': { name: '나서스', style: '성장형 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Darius': { name: '다리우스', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Morgana': { name: '모르가나', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+                'Vayne': { name: '베인', style: '성장형 AD', paths: { 'equal': { name: '표준 레드 풀캠프 후 윗바위게', path: ['RedBuff', 'Krugs', 'Raptors', 'Wolves', 'BlueBuff', 'Gromp', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프 후 아랫바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'BotScuttle'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['RedBuff', 'BlueBuff', 'Gromp', 'InvadeRed'] }}},
+                'Sett': { name: '세트', style: '초반 교전 AD', paths: { 'equal': { name: '레드 3캠프 후 미드 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankMid'] }, 'stronger': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Neeko': { name: '니코', style: '갱킹형 AP', paths: { 'equal': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'BlueBuff', 'Gromp', 'GankTop'] }, 'stronger': { name: '블루 3캠프 후 탑 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankTop'] }, 'weaker': { name: '레드 2캠프 후 상대 블루 카정', path: ['RedBuff', 'BlueBuff', 'InvadeBlue'] }}},
+                'Nautilus': { name: '노틸러스', style: '갱킹형 TANK', paths: { 'equal': { name: '블루 3캠프 후 미드 갱킹', path: ['BlueBuff', 'Gromp', 'RedBuff', 'GankMid'] }, 'stronger': { name: '레드 3캠프 후 탑 갱킹', path: ['RedBuff', 'Raptors', 'BlueBuff', 'GankTop'] }, 'weaker': { name: '3캠프 후 상대 레드 카정', path: ['BlueBuff', 'Gromp', 'RedBuff', 'InvadeRed'] }}},
+                'Teemo': { name: '티모', style: '성장형 AP', paths: { 'equal': { name: '표준 블루 풀캠프 후 윗바위게', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs', 'TopScuttle'] }, 'stronger': { name: '안전 블루 풀캠프', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'RedBuff', 'Krugs'] }, 'weaker': { name: '블루 4캠프 후 카정', path: ['BlueBuff', 'Gromp', 'Wolves', 'Raptors', 'InvadeRed'] }}},
+            };
+
+            const allChampions = Object.keys(championData).map(id => ({ id, name: championData[id].name }));
+
+            const championGrid = document.getElementById('champion-grid');
+            const searchInput = document.getElementById('champion-search');
+            const resultContent = document.getElementById('result-content');
+            const generateBtn = document.getElementById('generate-path-btn');
+            let selectedChampion = null;
+
+            const nodes = {
+                'RedBuff': document.getElementById('node-RedBuff'), 'BlueBuff': document.getElementById('node-BlueBuff'),
+                'Krugs': document.getElementById('node-Krugs'), 'Raptors': document.getElementById('node-Raptors'),
+                'Wolves': document.getElementById('node-Wolves'), 'Gromp': document.getElementById('node-Gromp'),
+                'GankTop': document.getElementById('node-GankTop'), 'GankBot': document.getElementById('node-GankBot'),
+                'GankMid': document.getElementById('node-GankMid'),
+                'TopScuttle': document.getElementById('node-TopScuttle'), 'BotScuttle': document.getElementById('node-BotScuttle'), 
+                'InvadeRed': document.getElementById('node-InvadeRed'), 'InvadeBlue': document.getElementById('node-InvadeBlue')
+            };
+
+            const edgeContainer = document.getElementById('edge-container');
+            const visualConnections = [
+                ['BlueBuff', 'Gromp'], ['BlueBuff', 'Wolves'], ['BlueBuff', 'GankTop'],
+                ['RedBuff', 'Krugs'], ['RedBuff', 'Raptors'], ['RedBuff', 'GankBot'],
+                ['Wolves', 'Raptors'], ['Wolves', 'Gromp'], ['Raptors', 'Krugs'],
+                ['BlueBuff', 'TopScuttle'], ['RedBuff', 'BotScuttle'], ['TopScuttle', 'GankMid'],
+                ['BotScuttle', 'GankMid'], ['TopScuttle', 'InvadeBlue'], ['BotScuttle', 'InvadeRed']
+            ];
+
+            function drawEdges() {
+                edgeContainer.innerHTML = '';
+                const mapVisual = document.querySelector('.map-visual');
+                if (!mapVisual) return;
+                
+                visualConnections.forEach(([from, to]) => {
+                    const fromEl = nodes[from];
+                    const toEl = nodes[to];
+                    if (!fromEl || !toEl) return;
+
+                    const x1 = fromEl.offsetLeft + fromEl.offsetWidth / 2;
+                    const y1 = fromEl.offsetTop + fromEl.offsetHeight / 2;
+                    const x2 = toEl.offsetLeft + toEl.offsetWidth / 2;
+                    const y2 = toEl.offsetTop + toEl.offsetHeight / 2;
+
+                    const length = Math.sqrt((x2 - x1)**2 + (y2 - y1)**2);
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
+                    const edge = document.createElement('div');
+                    edge.className = 'edge';
+                    edge.id = `edge-${from}-${to}`;
+                    edge.style.width = `${length}px`;
+                    edge.style.left = `${x1}px`;
+                    edge.style.top = `${y1}px`;
+                    edge.style.transform = `rotate(${angle}deg)`;
+                    edgeContainer.appendChild(edge);
+                });
+            }
+
+            function renderChampionGrid(champions) {
+                championGrid.innerHTML = '';
+                champions.forEach(champion => {
+                    const card = document.createElement('div');
+                    card.className = 'champion-card';
+                    card.dataset.championId = champion.id;
+                    const imageUrl = `https://ddragon.leagueoflegends.com/cdn/14.13.1/img/champion/${champion.id}.png`;
+                    card.innerHTML = `<img src="${imageUrl}" alt="${champion.name}" onerror="this.src='https://placehold.co/60x60/0d1117/c9d1d9?text=N/A'"><h3>${champion.name}</h3>`;
+                    card.addEventListener('click', () => {
+                        document.querySelectorAll('.champion-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        selectedChampion = champion;
+                    });
+                    championGrid.appendChild(card);
+                });
+            }
+
+            function updateVisuals(path, scenario) {
+                document.querySelectorAll('.node, .edge').forEach(el => {
+                    el.classList.remove('path-equal', 'path-stronger', 'path-weaker');
+                });
+
+                if(!path) return;
+
+                path.forEach((nodeName, index) => {
+                    setTimeout(() => {
+                        const nodeEl = nodes[nodeName];
+                        if (nodeEl) nodeEl.classList.add(`path-${scenario}`);
+                        
+                        if (index > 0) {
+                            const prevNodeName = path[index - 1];
+                            let edgeEl = document.getElementById(`edge-${prevNodeName}-${nodeName}`) || document.getElementById(`edge-${nodeName}-${prevNodeName}`);
+                            if (edgeEl) edgeEl.classList.add(`path-${scenario}`);
+                        }
+                    }, index * 200);
+                });
+            }
+
+            function generateOptimalPath() {
+                if (!selectedChampion) {
+                    resultContent.innerHTML = `<p id="result-text" style="color: var(--color-risk);">먼저 챔피언을 선택해주세요.</p>`;
+                    updateVisuals([], null);
+                    return;
+                }
+
+                const scenario = document.querySelector('input[name="scenario"]:checked').value;
+                const champData = championData[selectedChampion.id];
+                const pathInfo = champData.paths[scenario];
+
+                let analysisMessage;
+                if (scenario === 'stronger') {
+                     analysisMessage = { type: 'stronger', title: '분석: 불리한 상성 (안전 경로)', text: `상대 정글러가 초반에 더 강력합니다. 교전을 피하고 안전하게 성장할 수 있는 동선을 추천합니다.` };
+                } else if (scenario === 'weaker') {
+                    analysisMessage = { type: 'weaker', title: '분석: 유리한 상성 (공격 경로)', text: `초반 상성이 유리합니다. 상대 정글을 적극적으로 공략하여 초반 스노우볼을 굴리는 동선을 추천합니다.` };
+                } else {
+                    analysisMessage = { type: 'equal', title: '분석: 동등한 상성 (표준 경로)', text: `상대와 성장이 비슷할 것으로 예상됩니다. ${selectedChampion.name}의 강점을 살릴 수 있는 가장 효율적인 표준 동선을 추천합니다.` };
+                }
+                
+                let pathHtml = `
+                    <div class="analysis-box ${scenario}">
+                        <h4>${analysisMessage.title}</h4>
+                        <p>${analysisMessage.text}</p>
+                    </div>
+                    <div class="path-container">
+                        <h4>[${pathInfo.name}] ${selectedChampion.name} 추천 경로</h4>
+                        <ol class="path-steps">
+                `;
+                pathInfo.path.forEach((step, index) => {
+                    pathHtml += `<li><span class="step-number">${index + 1}</span> ${campKoreanNames[step] || step}</li>`;
+                });
+                pathHtml += `</ol></div>`;
+                resultContent.innerHTML = pathHtml;
+
+                updateVisuals(pathInfo.path, scenario);
+            }
+            
+            renderChampionGrid(allChampions);
+            drawEdges();
+            window.addEventListener('resize', drawEdges);
+
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase().replace(/\s/g, '');
+                renderChampionGrid(allChampions.filter(c => 
+                    c.name.toLowerCase().replace(/\s/g, '').includes(term) ||
+                    c.id.toLowerCase().replace(/\s/g, '').includes(term)
+                ));
+            });
+            generateBtn.addEventListener('click', generateOptimalPath);
+
+            const faders = document.querySelectorAll('.fade-in');
+            const appearOnScroll = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1 });
+            faders.forEach(fader => appearOnScroll.observe(fader));
+        });
+    </script>
+</body>
+</html>
+

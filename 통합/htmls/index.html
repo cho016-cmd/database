@@ -1,0 +1,428 @@
+
+<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정보 과제연구 계획서: 학교 급식 만족도 향상 방안 연구</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chosen Palette: Warm Neutrals & Sage -->
+    <!-- Application Structure Plan: The SPA is designed as a top-to-bottom narrative flow that guides the user through the research process. It starts with the 'Why' (motivation), moves to the 'How' (interactive timeline), details the 'What' (skills/tools), and shows the 'So What' (impact). The key design choice is the inclusion of a mock interactive dashboard at the end. This dashboard visualizes the *potential outcome* of the research, making the purpose of the plan tangible and exciting for students and mentors. This structure transforms a static document into an engaging story of a research project, from conception to potential results. -->
+    <!-- Visualization & Content Choices: Report Info: Research Timeline -> Goal: Organize/Explain Process -> Viz/Method: Interactive HTML/CSS/JS timeline -> Interaction: Clicking a step reveals details -> Justification: More engaging than a static table, clarifies the process flow. | Report Info: Potential research findings -> Goal: Inform/Engage -> Viz/Method: Mock dashboard with Bar & Doughnut charts (Chart.js/Canvas) -> Interaction: Chart tooltips -> Justification: Visualizes the end-goal of the research, making the plan's value immediately understandable. CONFIRMATION: NO SVG/Mermaid used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .step.active {
+            background-color: #10B981; /* Emerald-500 */
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.5);
+        }
+        /* Scroll Animation */
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Interactive Card */
+        .skill-card {
+            position: relative;
+            perspective: 1000px;
+        }
+        .skill-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .skill-card:hover .skill-card-inner {
+            transform: rotateY(180deg);
+        }
+        .skill-card-front, .skill-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+        .skill-card-back {
+            transform: rotateY(180deg);
+            background-color: #059669; /* Emerald-600 */
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-800">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <div class="container mx-auto max-w-5xl px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="font-bold text-lg text-emerald-700">급식 만족도 개선 연구</div>
+                <div class="hidden md:flex space-x-6 text-sm font-medium">
+                    <a href="#intro" class="text-stone-600 hover:text-emerald-600 transition-colors">연구 소개</a>
+                    <a href="#plan" class="text-stone-600 hover:text-emerald-600 transition-colors">연구 계획</a>
+                    <a href="#skills" class="text-stone-600 hover:text-emerald-600 transition-colors">핵심 기술</a>
+                    <a href="#impact" class="text-stone-600 hover:text-emerald-600 transition-colors">기대 효과</a>
+                    <a href="#dashboard" class="text-stone-600 hover:text-emerald-600 transition-colors">가상 대시보드</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+
+        <!-- Header -->
+        <header class="text-center py-12 md:py-16 bg-emerald-50 rounded-xl">
+            <h1 class="text-4xl md:text-5xl font-bold text-emerald-800">정보 과제연구 계획서</h1>
+            <p class="mt-4 text-lg md:text-xl font-semibold text-emerald-700">데이터 분석 기반의 학교 급식 만족도 향상 방안 연구</p>
+            <p class="mt-4 max-w-2xl mx-auto text-stone-600">학생들의 목소리를 데이터로 듣고, 더 나은 학교 급식을 만들기 위한 과학적 탐구 여정</p>
+        </header>
+
+        <main class="mt-12">
+            <!-- Section 1: Introduction -->
+            <section id="intro" class="mb-16 fade-in-section">
+                <h2 class="text-3xl font-bold text-center mb-8">1. 연구의 시작: 왜 급식을 연구할까?</h2>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-emerald-500">
+                        <h3 class="font-bold text-xl mb-3">연구 동기 및 필요성</h3>
+                        <p class="text-stone-600 leading-relaxed">특정 메뉴가 나오는 날, 잔반이 급증하고 편의점을 찾는 친구들이 많아지는 현상에서 출발했습니다. 이는 단순한 입맛 문제를 넘어 음식물 쓰레기, 학생 영양 불균형, 학교생활 만족도와 직결되는 중요한 문제입니다. 데이터에 기반한 객관적인 분석으로 문제점을 진단하고 개선 방향을 제시하고자 합니다.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-emerald-500">
+                        <h3 class="font-bold text-xl mb-3">연구 목적</h3>
+                        <p class="text-stone-600 leading-relaxed">설문 데이터 분석을 통해 학생들의 메뉴 선호/비선호 특징을 파악하고, 급식 만족도에 영향을 미치는 핵심 요인을 도출하는 것이 목표입니다. 최종적으로는 분석 결과를 바탕으로 실질적인 급식 메뉴 개선안을 제시하는 것입니다.</p>
+                    </div>
+                </div>
+                <div class="mt-8 bg-emerald-100/60 p-6 rounded-lg shadow-inner">
+                    <h3 class="font-bold text-xl mb-4 text-center text-emerald-800">핵심 연구 문제</h3>
+                    <ul class="space-y-3 text-center">
+                        <li><span class="font-semibold text-emerald-700 text-lg mr-2">Q1.</span> 우리 학교 학생들의 급식 만족도 수준과 가장 선호/비선호하는 메뉴는 무엇일까?</li>
+                        <li><span class="font-semibold text-emerald-700 text-lg mr-2">Q2.</span> 맛, 양, 메뉴 종류 등 어떤 요인이 만족도에 가장 큰 영향을 미칠까?</li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- Section 2: Research Plan -->
+            <section id="plan" class="mb-16 fade-in-section">
+                <h2 class="text-3xl font-bold text-center mb-10">2. 연구의 여정: 어떻게 진행할까?</h2>
+                <div id="timeline-container" class="w-full">
+                    <div class="flex flex-col md:flex-row justify-between items-center text-center">
+                        <!-- Timeline steps will be dynamically generated here -->
+                    </div>
+                    <div id="timeline-details" class="mt-8 bg-white p-6 rounded-lg shadow-xl min-h-[120px] transition-all duration-300">
+                        <!-- Details for the selected step will appear here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Tools & Skills -->
+            <section id="skills" class="mb-16 fade-in-section">
+                <h2 class="text-3xl font-bold text-center mb-8">3. 연구의 도구: 무엇을 준비할까?</h2>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Interactive Skill Cards -->
+                    <div class="skill-card h-40">
+                        <div class="skill-card-inner">
+                            <div class="skill-card-front">
+                                <h3 class="font-bold text-lg">설문조사 설계</h3>
+                                <p class="text-sm text-stone-600 mt-2">왜곡 없는 데이터 수집</p>
+                            </div>
+                            <div class="skill-card-back">
+                                <i class="fa-solid fa-list-check fa-2x mb-2"></i>
+                                <h3 class="font-bold">Survey Design</h3>
+                                <p class="text-sm mt-1">리커트 척도, 다중 선택, 개방형 질문을 조합하여 유의미한 데이터를 수집합니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="skill-card h-40">
+                        <div class="skill-card-inner">
+                            <div class="skill-card-front">
+                                <h3 class="font-bold text-lg">데이터 전처리</h3>
+                                <p class="text-sm text-stone-600 mt-2">분석을 위한 데이터 정제</p>
+                            </div>
+                            <div class="skill-card-back">
+                                <i class="fa-solid fa-wand-magic-sparkles fa-2x mb-2"></i>
+                                <h3 class="font-bold">Data Cleaning</h3>
+                                <p class="text-sm mt-1">결측치, 이상치를 제거하고 일관된 형태로 데이터를 가공하여 분석의 정확도를 높입니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="skill-card h-40">
+                        <div class="skill-card-inner">
+                            <div class="skill-card-front">
+                                <h3 class="font-bold text-lg">데이터 시각화</h3>
+                                <p class="text-sm text-stone-600 mt-2">결과를 한눈에 파악</p>
+                            </div>
+                            <div class="skill-card-back">
+                                <i class="fa-solid fa-chart-pie fa-2x mb-2"></i>
+                                <h3 class="font-bold">Visualization</h3>
+                                <p class="text-sm mt-1">Python의 Matplotlib, Seaborn 라이브러리로 분석 결과를 그래프로 표현합니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="skill-card h-40">
+                        <div class="skill-card-inner">
+                            <div class="skill-card-front">
+                                <h3 class="font-bold text-lg">텍스트 마이닝</h3>
+                                <p class="text-sm text-stone-600 mt-2">주관식 답변 심층 분석</p>
+                            </div>
+                            <div class="skill-card-back">
+                                 <i class="fa-solid fa-magnifying-glass-chart fa-2x mb-2"></i>
+                                <h3 class="font-bold">Text Mining</h3>
+                                <p class="text-sm mt-1">서술형 응답에서 핵심 키워드를 추출하여 숨겨진 학생들의 의견을 분석합니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Expected Impact -->
+            <section id="impact" class="mb-16 fade-in-section">
+                <h2 class="text-3xl font-bold text-center mb-8">4. 연구의 가치: 무엇을 얻을까?</h2>
+                <div class="grid md:grid-cols-3 gap-6 text-center">
+                    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <h3 class="font-bold text-xl mb-2">객관적 진단</h3>
+                        <p class="text-stone-600">데이터를 통해 급식의 강점과 약점을 명확히 파악하고, 막연한 불만을 구체적인 개선점으로 전환합니다.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <h3 class="font-bold text-xl mb-2">실질적 기여</h3>
+                        <p class="text-stone-600">분석 결과를 영양사 선생님께 전달하여 메뉴 개선 등 실질적인 급식 질 향상에 기여합니다.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <h3 class="font-bold text-xl mb-2">역량 성장</h3>
+                        <p class="text-stone-600">연구 전 과정을 수행하며 문제 해결 능력과 과학적 소양을 기르고, 공동체에 기여하는 경험을 합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+             <!-- Section 5: Mock Dashboard -->
+            <section id="dashboard" class="mb-12 fade-in-section">
+                <h2 class="text-3xl font-bold text-center mb-2">5. 연구 결과 미리보기: 가상 대시보드</h2>
+                <p class="text-center text-stone-600 mb-8">본 연구가 완료되면, 다음과 같은 데이터 기반의 분석 결과를 얻을 수 있습니다.</p>
+                <div class="bg-white p-4 md:p-6 rounded-lg shadow-2xl">
+                    <div class="grid lg:grid-cols-2 gap-8">
+                        <div class="bg-stone-50 p-4 rounded-lg border">
+                            <h3 class="font-bold text-center mb-2">학생 선호/비선호 메뉴 TOP 5</h3>
+                            <div class="chart-container"><canvas id="favoriteMenuChart"></canvas></div>
+                            <div class="mt-4 p-3 bg-emerald-50 rounded-md">
+                                <h4 class="font-semibold text-emerald-800">Key Insight</h4>
+                                <p class="text-sm text-stone-600">튀김, 고기류 등 명확한 맛의 메뉴에 대한 선호도가 높고, 나물, 조림 등 식감이나 향이 익숙하지 않은 메뉴에 대한 선호도는 낮게 나타남.</p>
+                            </div>
+                        </div>
+                        <div class="bg-stone-50 p-4 rounded-lg border">
+                             <h3 class="font-bold text-center mb-2">급식 만족도에 영향을 미치는 요인</h3>
+                            <div class="chart-container"><canvas id="satisfactionFactorsChart"></canvas></div>
+                             <div class="mt-4 p-3 bg-emerald-50 rounded-md">
+                                <h4 class="font-semibold text-emerald-800">Key Insight</h4>
+                                <p class="text-sm text-stone-600">'메뉴의 맛'이 만족도에 가장 결정적인 영향을 미치며, '메뉴의 다양성' 또한 중요한 요인으로 확인됨. '양'과 '배식 속도'의 영향은 상대적으로 낮음.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="text-center py-8 border-t border-stone-200 fade-in-section">
+            <h3 class="font-semibold mb-2">참고 문헌 예시</h3>
+            <ul class="text-sm text-stone-500 space-y-1">
+                <li>김영양 (2023). 고등학생의 학교 급식 선택 속성이 만족도 및 충성도에 미치는 영향 연구. **한국식생활문화학회지, 38**(2), 110-120.</li>
+                <li>이데이터 (2024). **파이썬을 활용한 데이터 분석과 시각화**. 서울: 정보과학출판사.</li>
+            </ul>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Scroll Animations ---
+            const sections = document.querySelectorAll('.fade-in-section');
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+
+
+            // --- Interactive Timeline ---
+            const timelineData = [
+                {
+                    week: '1-2주차',
+                    title: '계획 및 설계',
+                    details: '선행 연구 조사를 통해 급식 만족도 요인을 파악하고, 구글 폼을 이용해 설문 문항을 개발합니다. (5점 척도 만족도, 메뉴 선호도, 서술형 의견 등 포함)'
+                },
+                {
+                    week: '3주차',
+                    title: '데이터 수집',
+                    details: '온라인 학급방과 학교 커뮤니티를 통해 설문 링크를 배포하고, 목표 인원 100명의 응답 데이터를 수집합니다.'
+                },
+                {
+                    week: '4-5주차',
+                    title: '데이터 분석',
+                    details: '수집된 데이터를 CSV로 변환하고, 파이썬(Pandas)으로 정제합니다. 이후 빈도 분석, 교차 분석, 기술 통계 분석을 수행합니다.'
+                },
+                {
+                    week: '6주차',
+                    title: '시각화',
+                    details: '분석된 결과를 Matplotlib, Seaborn 라이브러리를 활용하여 막대그래프, 파이 차트, 워드클라우드 등 다양한 형태로 시각화합니다.'
+                },
+                {
+                    week: '7-8주차',
+                    title: '보고서 작성',
+                    details: '전체 분석 결과를 종합하여 연구 문제에 대한 답을 내리고, 구체적인 급식 메뉴 개선안을 제안하는 최종 보고서를 작성합니다.'
+                }
+            ];
+
+            const timelineContainer = document.querySelector('#timeline-container .flex');
+            const detailsContainer = document.getElementById('timeline-details');
+
+            timelineData.forEach((item, index) => {
+                const step = document.createElement('div');
+                step.className = 'step flex-1 m-1 p-3 rounded-lg cursor-pointer transition-all duration-300 bg-gray-200 hover:bg-emerald-400 hover:text-white';
+                step.innerHTML = `<div class="font-bold">${item.week}</div><div>${item.title}</div>`;
+                step.dataset.index = index;
+
+                if (index > 0) {
+                    const line = document.createElement('div');
+                    line.className = 'hidden md:block w-full h-1 bg-gray-300';
+                    timelineContainer.appendChild(line);
+                }
+                timelineContainer.appendChild(step);
+
+                step.addEventListener('click', () => {
+                    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+                    step.classList.add('active');
+                    detailsContainer.innerHTML = `<p class="font-semibold text-lg">${item.title} (${item.week})</p><p class="mt-2 text-stone-600">${item.details}</p>`;
+                });
+            });
+            
+            document.querySelector('.step').click();
+
+            // --- Mock Charts ---
+            const chartOptions = {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 12 },
+                    },
+                },
+                 scales: {
+                    x: {
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            };
+            
+            // Favorite & Unfavorite Menu Chart (Combined)
+            const favCtx = document.getElementById('favoriteMenuChart').getContext('2d');
+            new Chart(favCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['치킨마요', '돈까스', '짜장면', '나물무침', '생선조림'],
+                    datasets: [{
+                        label: '선호도',
+                        data: [88, 82, 75, 25, 30],
+                        backgroundColor: 'rgba(22, 163, 74, 0.6)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    },
+                    {
+                        label: '비선호도',
+                        data: [5, 8, 12, 92, 85],
+                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }]
+                },
+                options: { ...chartOptions, indexAxis: 'y' }
+            });
+
+            // Satisfaction Factors Chart (New Radar Chart)
+            const satCtx = document.getElementById('satisfactionFactorsChart').getContext('2d');
+            new Chart(satCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['메뉴의 맛', '메뉴의 다양성', '음식의 양', '배식 속도', '위생 상태'],
+                    datasets: [{
+                        label: '만족도 기여도',
+                        data: [90, 75, 60, 55, 85],
+                        backgroundColor: 'rgba(22, 163, 74, 0.2)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        pointBackgroundColor: 'rgba(22, 163, 74, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: chartOptions.plugins.tooltip
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0,0,0,0.1)' },
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            pointLabels: { font: { size: 13 } },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

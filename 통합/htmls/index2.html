@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>첸토 게임 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f0f4f8; /* Light blue-gray background */
+            --card-bg: #ffffff;
+            --text-primary: #1e293b; /* slate-800 */
+            --text-secondary: #475569; /* slate-600 */
+            --accent-color: #4f46e5; /* indigo-600 */
+            --accent-hover: #4338ca; /* indigo-700 */
+            --green-accent: #10b981; /* emerald-500 */
+            --yellow-accent: #f59e0b; /* amber-500 */
+            --border-color: #e2e8f0; /* slate-200 */
+            --font-sans: 'Noto Sans KR', sans-serif;
+            --font-mono: 'Source Code Pro', monospace;
+        }
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+        }
+        #player-status-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+        @media (min-width: 768px) { #player-status-container { grid-template-columns: repeat(4, 1fr); } }
+        .player-card {
+            background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: all 0.3s ease;
+        }
+        .player-card.current-player { border-color: var(--yellow-accent); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4); transform: translateY(-4px); }
+        .player-name { font-weight: 700; color: var(--text-primary); }
+        .card-count-wrapper { display: flex; align-items: baseline; justify-content: flex-end; margin-top: 0.5rem; }
+        .card-count {
+            font-size: 2.25rem; font-weight: 700; color: var(--accent-color); transition: color 0.3s ease;
+        }
+        .card-count.updated { animation: countUpdate 0.5s ease-out; }
+        .card-unit { font-size: 1rem; font-weight: 500; color: var(--text-secondary); margin-left: 0.25rem; }
+        
+        .output-block {
+            font-family: var(--font-mono); background-color: transparent; padding: 0; min-height: 200px;
+            display: flex; flex-direction: column; gap: 0.75rem; perspective: 1000px;
+        }
+        .turn-log-entry {
+            background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+            animation: slideInUp 0.6s ease-out forwards;
+            /* Animation for smooth hide/show */
+            transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.5s ease-in-out, margin-top 0.4s ease-in-out, padding-top 0.4s ease-in-out, padding-bottom 0.4s ease-in-out;
+            overflow: hidden;
+            max-height: 1000px; /* Set a large max-height for animation */
+        }
+        .turn-log-entry.past-turn {
+            /* This class is for identifying past turns but doesn't apply visual changes itself */
+        }
+        .turn-log-entry.is-collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0 !important; /* Override gap */
+            padding-top: 0;
+            padding-bottom: 0;
+            border-width: 0;
+        }
+
+        .turn-header { padding: 0.75rem 1.25rem; background-color: #f8fafc; border-bottom: 1px solid var(--border-color); border-top-left-radius: 0.75rem; border-top-right-radius: 0.75rem; font-weight: 700; color: var(--accent-color); }
+        .turn-body { padding: 1.25rem; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; }
+        .log-line { display: flex; align-items: center; margin-bottom: 0.5rem; }
+        .log-line svg { margin-right: 0.75rem; flex-shrink: 0; }
+        .final-result { border-left: 4px solid var(--accent-color); }
+        .winner-line { color: var(--green-accent); font-weight: 700; }
+        
+        .code-block { font-family: var(--font-mono); background-color: #1e293b; color: #e2e8f0; padding: 1.5rem; border-radius: 0.75rem; overflow-x: auto; white-space: pre; }
+
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(30px) rotateX(-10deg); } to { opacity: 1; transform: translateY(0) rotateX(0deg); } }
+        @keyframes countUpdate { 0% { transform: scale(1.3); color: var(--yellow-accent); } 100% { transform: scale(1); color: var(--accent-color); } }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-5xl">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">첸토 게임 시뮬레이터</h1>
+        </header>
+
+        <main class="space-y-8">
+            <div id="player-status-container"></div>
+            
+            <div class="flex justify-center items-center space-x-4">
+                 <button id="start-button" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all duration-300 ease-in-out transform hover:-translate-y-1 flex items-center" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+                    <span id="start-button-text">새 게임 시작</span>
+                </button>
+                <button id="next-turn-button" class="hidden bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300 ease-in-out transform hover:-translate-y-1 flex items-center">
+                    다음 턴 진행
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                </button>
+            </div>
+
+            <section>
+                 <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-slate-900 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        게임 로그
+                    </h2>
+                    <div>
+                        <button id="show-all-button" class="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-800 mr-4">이전 턴 보기</button>
+                        <button id="toggle-code-button" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">코드 보기</button>
+                    </div>
+                 </div>
+                <div id="output" class="output-block"></div>
+            </section>
+            
+            <section id="code-container" class="hidden">
+                 <h2 class="text-2xl font-bold text-slate-900 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                    Python 시뮬레이션 코드
+                </h2>
+                <div id="python-code" class="code-block">
+# This is the Python code that will be executed by Pyodide in the browser.
+import random
+import json
+
+class Player:
+    def __init__(self, name): self.name = name; self.hand = []
+    def add_card(self, card): self.hand.append(card); self.hand.sort()
+    def remove_random_card(self):
+        if not self.hand: return None
+        card = random.choice(self.hand); self.hand.remove(card); return card
+    def play_card_strategically(self, target_card):
+        if not self.hand: return None
+        best_card = min(self.hand, key=lambda card: abs(card - target_card))
+        self.hand.remove(best_card); return best_card
+    def discard_cards_in_range(self, low, high):
+        to_discard = [c for c in self.hand if low < c < high]
+        if to_discard: self.hand = [c for c in self.hand if c not in to_discard]
+        return to_discard
+
+class CentoGameSimulator:
+    def __init__(self, player_names, cards_per_player=10):
+        self.players=[Player(name) for name in player_names]; self.deck=list(range(1,101)); self.cards_per_player=cards_per_player; self.current_player_index=0; self.turn_number=1; self.game_over=False
+    
+    def get_game_state(self):
+        return {
+            "players": [{ "name": p.name, "cards": len(p.hand) } for p in self.players],
+            "current_player_name": self.players[self.current_player_index].name if not self.game_over else None,
+            "is_over": self.game_over,
+            "turn_number": self.turn_number
+        }
+
+    def shuffle_and_deal(self):
+        random.shuffle(self.deck)
+        for _ in range(self.cards_per_player):
+            for p in self.players:
+                if self.deck: p.add_card(self.deck.pop())
+        
+        log = {
+            "header": "게임 시작: 카드를 섞고 분배합니다.",
+            "log_lines": [{ "type": "INIT_STATUS", "content": f"{p.name}: {p.hand}"} for p in self.players]
+        }
+        return json.dumps({ "log": log, "state": self.get_game_state() })
+
+    def play_turn(self):
+        if self.game_over: return json.dumps({ "log": None, "state": self.get_game_state() })
+        
+        cp = self.players[self.current_player_index]
+        log_lines = [{"type": "INFO_HAND", "content": f"현재 손패: {cp.hand}"}]
+        
+        targets = [p for p in self.players if p != cp and p.hand]
+        if not targets:
+            self.game_over = True
+            log_lines.append({"type": "INFO_MSG", "content": "카드를 뽑을 상대가 없어 게임을 종료합니다."})
+        else:
+            tp = random.choice(targets)
+            drawn_card = tp.remove_random_card()
+            log_lines.append({"type": "ACTION_DRAW", "content": f"{cp.name}이(가) {tp.name}에게서 카드를 뽑았습니다: [{drawn_card}]"})
+            
+            played_card = cp.play_card_strategically(drawn_card)
+            if played_card is None:
+                self.game_over = True
+                log_lines.append({"type": "WIN", "content": f"{cp.name}이(가) 손에 카드가 없어 승리했습니다!"})
+            else:
+                log_lines.append({"type": "ACTION_PLAY", "content": f"{cp.name}이(가) 자신의 손에서 카드를 냈습니다: [{played_card}]"})
+                low, high = min(drawn_card, played_card), max(drawn_card, played_card)
+                
+                if high - low <= 1:
+                    log_lines.append({"type": "INFO_RANGE", "content": f"범위가 없습니다! ({low}~{high})"})
+                else:
+                    log_lines.append({"type": "INFO_RANGE", "content": f"생성된 범위: {low}~{high} (버릴 수 있는 카드: {low+1}~{high-1})"})
+                    for p in self.players:
+                        if p != cp:
+                            discarded = p.discard_cards_in_range(low, high)
+                            if discarded:
+                                log_lines.append({"type": "ACTION_DISCARD", "content": f"{p.name}이(가) 카드를 버렸습니다: {discarded}"})
+                            if not p.hand: self.game_over = True; log_lines.append({"type": "WIN", "content": f"{p.name}이(가) 모든 카드를 버려 승리했습니다!"}); break
+                
+                if not cp.hand and not self.game_over:
+                    self.game_over = True
+                    log_lines.append({"type": "WIN", "content": f"{cp.name}이(가) 마지막 카드를 내어 승리했습니다!"})
+        
+        turn_header_text = f"턴 {self.turn_number}: {cp.name}의 차례"
+        if self.game_over:
+            winner = next((p for p in self.players if not p.hand), None)
+            log_lines.append({"type": "FINAL_RESULT", "content": "--- 최종 결과 ---"})
+            if winner: 
+                log_lines.append({"type": "WINNER", "content": f"🎉 최종 승자는 {winner.name}입니다! 🎉"})
+                turn_header_text = f"게임 종료: {winner.name} 승리!"
+            else: 
+                log_lines.append({"type": "INFO_MSG", "content": "승자 없이 게임이 종료되었습니다."})
+                turn_header_text = "게임 종료"
+        
+        if not self.game_over:
+             self.current_player_index = (self.current_player_index + 1) % len(self.players)
+             self.turn_number += 1
+
+        log = { "header": turn_header_text, "log_lines": log_lines }
+        return json.dumps({ "log": log, "state": self.get_game_state() })
+
+game = None
+def start_new_game():
+    global game; player_list=["플레이어1","플레이어2","플레이어3","플레이어4"]; game=CentoGameSimulator(player_list,10); return game.shuffle_and_deal()
+def run_next_turn():
+    global game
+    if game: return game.play_turn()
+    return "{}"
+                </div>
+            </section>
+        </main>
+        <footer class="text-center mt-12 py-6 border-t border-slate-200">
+            <p class="text-sm text-slate-500">&copy; 2025 Cento Game Simulator. Designed & Refactored by Professional. Powered by Pyodide.</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const startButton = document.getElementById('start-button');
+        const nextTurnButton = document.getElementById('next-turn-button');
+        const outputElement = document.getElementById('output');
+        const codeContainer = document.getElementById('code-container');
+        const toggleCodeButton = document.getElementById('toggle-code-button');
+        const showAllButton = document.getElementById('show-all-button');
+        const playerStatusContainer = document.getElementById('player-status-container');
+
+        // State
+        let pyodide;
+        let pyodideReady = false;
+
+        const ICONS = {
+            INIT_STATUS: `<svg class="h-5 w-5 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>`,
+            INFO_HAND: `<svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.852l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+            ACTION_DRAW: `<svg class="h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`,
+            ACTION_PLAY: `<svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>`,
+            ACTION_DISCARD: `<svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.067-2.09 1.02-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`,
+        };
+        
+        // --- UI Update Functions ---
+        function setupPlayerUI(players) {
+            playerStatusContainer.innerHTML = '';
+            players.forEach(({ name }) => {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.dataset.playerName = name;
+                card.innerHTML = `
+                    <div class="player-name">${name}</div>
+                    <div class="card-count-wrapper">
+                        <span class="card-count">10</span>
+                        <span class="card-unit">장</span>
+                    </div>
+                `;
+                playerStatusContainer.appendChild(card);
+            });
+        }
+
+        function updatePlayerStatus({ players, current_player_name }) {
+            players.forEach(({ name, cards }) => {
+                const playerCard = document.querySelector(`.player-card[data-player-name="${name}"]`);
+                if (playerCard) {
+                    const countEl = playerCard.querySelector('.card-count');
+                    if (countEl.textContent !== String(cards)) {
+                        countEl.textContent = cards;
+                        countEl.classList.add('updated');
+                        setTimeout(() => countEl.classList.remove('updated'), 500);
+                    }
+                }
+            });
+            document.querySelectorAll('.player-card').forEach(c => c.classList.remove('current-player'));
+            if (current_player_name) {
+                const currentPlayerCard = document.querySelector(`.player-card[data-player-name="${current_player_name}"]`);
+                if(currentPlayerCard) currentPlayerCard.classList.add('current-player');
+            }
+        }
+        
+        function addLogEntry(logData) {
+            if (!logData) return;
+            const { header, log_lines } = logData;
+
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'turn-log-entry';
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'turn-header';
+            headerDiv.textContent = header;
+            entryDiv.appendChild(headerDiv);
+
+            const bodyDiv = document.createElement('div');
+            bodyDiv.className = 'turn-body';
+            
+            let bodyHtml = '';
+            log_lines.forEach(({ type, content }) => {
+                const icon = ICONS[type] || ICONS['INFO_HAND'];
+                if (type === 'FINAL_RESULT') bodyHtml += `<div class="final-result p-3 mt-3 bg-slate-50 rounded-md">${content}</div>`;
+                else if (type === 'WINNER') bodyHtml += `<div class="winner-line text-lg mt-2">${content}</div>`;
+                else if (type === 'WIN') bodyHtml += `<div class="log-line winner-line mt-2">${content}</div>`;
+                else bodyHtml += `<div class="log-line">${icon} ${content}</div>`;
+            });
+            bodyDiv.innerHTML = bodyHtml;
+            entryDiv.appendChild(bodyDiv);
+            
+            outputElement.appendChild(entryDiv);
+            outputElement.scrollTop = outputElement.scrollHeight;
+        }
+
+        // --- Pyodide & Game Logic ---
+        async function setupPyodide() {
+            addLogEntry({ header: '엔진 로딩 중...', log_lines: [{type: 'INFO_HAND', content: 'Python 시뮬레이션 엔진을 브라우저에 준비하고 있습니다.'}] });
+            pyodide = await loadPyodide();
+            const pythonCode = document.getElementById('python-code').textContent;
+            await pyodide.runPythonAsync(pythonCode);
+            
+            outputElement.innerHTML = '';
+            addLogEntry({ header: '준비 완료', log_lines: [{type: 'INFO_HAND', content: "'새 게임 시작' 버튼을 눌러주세요."}] });
+
+            pyodideReady = true;
+            startButton.disabled = false;
+        }
+
+        async function handlePythonResponse(pythonCall) {
+            const jsonResponse = await pythonCall;
+            const result = JSON.parse(jsonResponse);
+            if (result.log) addLogEntry(result.log);
+            if (result.state) updatePlayerStatus(result.state);
+            return result.state || {};
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', async () => {
+            if (!pyodideReady) return;
+            // Reset UI
+            outputElement.innerHTML = '';
+            playerStatusContainer.innerHTML = '';
+            showAllButton.classList.add('hidden');
+            startButton.disabled = true;
+            nextTurnButton.classList.add('hidden');
+
+            try {
+                const state = await handlePythonResponse(pyodide.runPythonAsync('start_new_game()'));
+                // Check if state and players exist before setting up UI
+                if (state && state.players) {
+                    setupPlayerUI(state.players);
+                    updatePlayerStatus(state);
+                    nextTurnButton.classList.remove('hidden');
+                }
+            } catch (err) {
+                addLogEntry({ header: '에러 발생', log_lines: [{type: 'WIN', content: err.message}] });
+            } finally {
+                startButton.disabled = false;
+            }
+        });
+        
+        nextTurnButton.addEventListener('click', async () => {
+            if (!pyodideReady) return;
+            nextTurnButton.disabled = true;
+            // Mark all existing turns as past and collapse them.
+            document.querySelectorAll('.turn-log-entry').forEach(turn => {
+                turn.classList.add('past-turn', 'is-collapsed');
+            });
+            
+            try {
+                const state = await handlePythonResponse(pyodide.runPythonAsync('run_next_turn()'));
+                showAllButton.classList.remove('hidden');
+                showAllButton.textContent = '이전 턴 보기';
+
+                if (state && state.is_over) {
+                    nextTurnButton.classList.add('hidden');
+                    // On game over, show all turns
+                    document.querySelectorAll('.turn-log-entry').forEach(turn => turn.classList.remove('past-turn', 'is-collapsed'));
+                    showAllButton.classList.add('hidden');
+                    startButton.focus();
+                }
+            } catch (err) {
+                addLogEntry({ header: '에러 발생', log_lines: [{type: 'WIN', content: err.message}] });
+            } finally {
+                nextTurnButton.disabled = false;
+            }
+        });
+
+        toggleCodeButton.addEventListener('click', () => {
+            const isHidden = codeContainer.classList.toggle('hidden');
+            toggleCodeButton.textContent = isHidden ? '코드 보기' : '코드 숨기기';
+        });
+        
+        showAllButton.addEventListener('click', () => {
+            const pastTurns = outputElement.querySelectorAll('.turn-log-entry.past-turn');
+            const areCollapsed = Array.from(pastTurns).some(turn => turn.classList.contains('is-collapsed'));
+
+            if (areCollapsed) {
+                pastTurns.forEach(turn => turn.classList.remove('is-collapsed'));
+                showAllButton.textContent = '이전 턴 숨기기';
+            } else {
+                pastTurns.forEach(turn => turn.classList.add('is-collapsed'));
+                showAllButton.textContent = '이전 턴 보기';
+            }
+        });
+
+        // Initial Load
+        setupPyodide();
+    </script>
+</body>
+</html>
+
